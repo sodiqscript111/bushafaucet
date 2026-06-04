@@ -77,10 +77,10 @@ func (r *ClaimRepository) UpdateStatus(id string, status models.ClaimStatus, quo
 		"status": status,
 	}
 	if quoteID != "" {
-		updates["busha_quote_id"] = quoteID
+		updates["busha_quote_id"] = &quoteID
 	}
 	if transferID != "" {
-		updates["busha_transfer_id"] = transferID
+		updates["busha_transfer_id"] = &transferID
 	}
 	if errMsg != "" {
 		updates["error_message"] = errMsg

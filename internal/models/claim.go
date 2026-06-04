@@ -21,8 +21,8 @@ type FaucetClaim struct {
 	Blockchain	string		`gorm:"type:varchar(50);not null"      json:"blockchain"`
 	Amount		float64		`gorm:"type:decimal(20,8);not null"    json:"amount"`
 	Status		ClaimStatus	`gorm:"type:varchar(20);not null;default:'PENDING'" json:"status"`
-	BushaQuoteID	string		`gorm:"type:varchar(255);uniqueIndex"  json:"busha_quote_id,omitempty"`
-	BushaTransferID	string		`gorm:"type:varchar(255);uniqueIndex"  json:"busha_transfer_id,omitempty"`
+	BushaQuoteID	*string		`gorm:"type:varchar(255);uniqueIndex"  json:"busha_quote_id,omitempty"`
+	BushaTransferID	*string		`gorm:"type:varchar(255);uniqueIndex"  json:"busha_transfer_id,omitempty"`
 	ErrorMessage	string		`gorm:"type:text"                      json:"error_message,omitempty"`
 	CreatedAt	time.Time	`gorm:"autoCreateTime"                 json:"created_at"`
 	UpdatedAt	time.Time	`gorm:"autoUpdateTime"                 json:"updated_at"`
