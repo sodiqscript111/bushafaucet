@@ -38,6 +38,17 @@ body {
   margin-bottom: 1.5rem;
 }
 
+.logo-img {
+  height: 22px;
+  width: auto;
+}
+
+.logo-faucet {
+  font-size: 13px;
+  color: #999;
+  font-weight: 400;
+}
+
 .logo-dot {
   width: 32px;
   height: 32px;

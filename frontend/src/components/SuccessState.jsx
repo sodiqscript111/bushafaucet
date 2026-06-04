@@ -1,10 +1,11 @@
+import logo from '../assets/light.svg'
+
 export default function SuccessState({ claim, onReset }) {
   return (
     <div className="card">
       <div className="logo-row">
-        <div className="logo-dot">💧</div>
-        <span className="logo-name">Busha Faucet</span>
-        <span className="badge">Sandbox</span>
+        <img src={logo} alt="Busha" className="logo-img" />
+        <span className="logo-faucet">Faucet</span>
       </div>
       <div className="centered">
         <div className="success-icon">✓</div>

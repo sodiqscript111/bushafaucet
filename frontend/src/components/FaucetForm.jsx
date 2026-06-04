@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { getConfig, submitClaim } from '../services/api'
+import logo from '../assets/light.svg'
 
 export default function FaucetForm({ onSubmitting, onSuccess, onError }) {
   const [config, setConfig] = useState(null)
@@ -55,9 +56,8 @@ export default function FaucetForm({ onSubmitting, onSuccess, onError }) {
   return (
     <form onSubmit={handleSubmit} className="card">
       <div className="logo-row">
-        <div className="logo-dot">💧</div>
-        <span className="logo-name">Busha Faucet</span>
-        <span className="badge">Sandbox</span>
+        <img src={logo} alt="Busha" className="logo-img" />
+        <span className="logo-faucet">Faucet</span>
       </div>
       <h1 className="screen-title">Request test tokens</h1>
       <p className="screen-sub">
