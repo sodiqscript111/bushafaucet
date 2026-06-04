@@ -1,0 +1,197 @@
+openapi: 3.0.3
+info:
+  title: Faucet API
+  description: API for the Faucet application to request testnet funds.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8085/api/v1
+    description: Local development server
+paths:
+  /config:
+    get:
+      summary: Get Faucet Configuration
+      description: Returns the supported blockchains and their maximum allowed faucet amounts.
+      operationId: getConfig
+      tags:
+        - Faucet
+      responses:
+        '200':
+          description: Configuration loaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigResponse'
+
+  /faucet:
+    post:
+      summary: Request Faucet Funds (Create Claim)
+      description: Submits a request to claim funds for a specific wallet address.
+      operationId: createClaim
+      tags:
+        - Faucet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClaimRequest'
+      responses:
+        '202':
+          description: Claim submitted successfully and is processing.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClaimResponse'
+        '400':
+          description: Bad request (validation failed or amount exceeded max limit).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Too many requests (rate limit exceeded or lock active).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /claims:
+    get:
+      summary: List Recent Claims
+      description: Retrieves a list of the most recent faucet claims.
+      operationId: listClaims
+      tags:
+        - Claims
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+          required: false
+          description: Number of claims to return
+      responses:
+        '200':
+          description: A list of claims.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ClaimData'
+
+  /claims/{id}:
+    get:
+      summary: Get Claim Status
+      description: Retrieves the current status and details of a specific claim.
+      operationId: getClaim
+      tags:
+        - Claims
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The unique UUID of the claim
+      responses:
+        '200':
+          description: Claim details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ClaimData'
+        '404':
+          description: Claim not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    ClaimRequest:
+      type: object
+      required:
+        - wallet_address
+        - blockchain
+        - amount
+      properties:
+        wallet_address:
+          type: string
+          description: The receiving wallet address
+          example: 0x1234567890abcdef...
+        blockchain:
+          type: string
+          description: The requested network
+          example: USDT
+        amount:
+          type: number
+          format: double
+          description: The amount to claim (must be > 0 and <= max limit)
+          example: 2.5
+
+    ClaimData:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "uuid-1234-5678"
+        wallet_address:
+          type: string
+          example: "0x1234567890abcdef..."
+        blockchain:
+          type: string
+          example: "USDT"
+        amount:
+          type: number
+          format: double
+          example: 2.5
+        status:
+          type: string
+          enum: [PENDING, COMPLETED, FAILED]
+          example: PENDING
+        created_at:
+          type: string
+          format: date-time
+
+    ClaimResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "claim submitted successfully. Processing will begin shortly."
+        data:
+          $ref: '#/components/schemas/ClaimData'
+
+    ConfigResponse:
+      type: object
+      properties:
+        blockchains:
+          type: array
+          items:
+            type: string
+          example: ["BTC", "ETH", "USDT", "USDC", "BNB"]
+        max_amounts:
+          type: object
+          additionalProperties:
+            type: string
+          example:
+            BTC: "0.0001"
+            USDT: "5"
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "requested amount exceeds the maximum allowed for USDT (5)"
