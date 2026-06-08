@@ -1,4 +1,4 @@
-const BASE_URL = 'http://localhost:8085/api/v1'
+const BASE_URL = '/api/v1'
 
 export async function getConfig() {
   const res = await fetch(`${BASE_URL}/config`)

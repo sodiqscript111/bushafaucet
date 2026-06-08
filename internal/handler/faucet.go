@@ -9,23 +9,23 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"faucet/internal/busha"
 	"faucet/internal/config"
 	"faucet/internal/db"
 	"faucet/internal/models"
-	rds "faucet/internal/redis"
 )
 
 type FaucetHandler struct {
-	cfg		*config.Config
-	claimRepo	*db.ClaimRepository
-	redis		*rds.Client
+	cfg         *config.Config
+	claimRepo   *db.ClaimRepository
+	bushaClient *busha.Client
 }
 
-func NewFaucetHandler(cfg *config.Config, claimRepo *db.ClaimRepository, redis *rds.Client) *FaucetHandler {
+func NewFaucetHandler(cfg *config.Config, claimRepo *db.ClaimRepository, bushaClient *busha.Client) *FaucetHandler {
 	return &FaucetHandler{
-		cfg:		cfg,
-		claimRepo:	claimRepo,
-		redis:		redis,
+		cfg:         cfg,
+		claimRepo:   claimRepo,
+		bushaClient: bushaClient,
 	}
 }
 
@@ -84,26 +84,7 @@ func (h *FaucetHandler) HandleClaim(c *gin.Context) {
 		return
 	}
 
-	ctx := c.Request.Context()
-
-	locked, err := h.redis.AcquireLock(ctx, req.WalletAddress)
-	if err != nil {
-		slog.Error("failed to acquire lock", "error", err)
-		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "internal server error"})
-		return
-	}
-	if !locked {
-		c.JSON(http.StatusTooManyRequests, ErrorResponse{
-			Error: "request already in progress for this wallet. Please wait.",
-		})
-		return
-	}
-
-	defer func() {
-		if err := h.redis.ReleaseLock(ctx, req.WalletAddress); err != nil {
-			slog.Error("failed to release lock", "error", err, "wallet", req.WalletAddress)
-		}
-	}()
+	// Simple processing without Redis lock
 
 	since := time.Now().Add(-24 * time.Hour)
 	count, err := h.claimRepo.CountRecentClaims(req.WalletAddress, since)
@@ -134,23 +115,44 @@ func (h *FaucetHandler) HandleClaim(c *gin.Context) {
 
 	slog.Info("claim created", "claim_id", claim.ID, "wallet", req.WalletAddress, "blockchain", req.Blockchain)
 
-	if err := h.redis.PublishJob(ctx, claim.ID, req.WalletAddress, req.Blockchain); err != nil {
-		slog.Error("failed to publish job", "error", err, "claim_id", claim.ID)
+	amountStr := strconv.FormatFloat(claim.Amount, 'f', -1, 64)
+	network := config.BlockchainNetworks[req.Blockchain]
 
-		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "internal server error"})
+	slog.Info("creating Busha quote", "amount", amountStr, "network", network)
+	quote, err := h.bushaClient.CreateQuote(req.Blockchain, amountStr, req.WalletAddress, network)
+	if err != nil {
+		slog.Error("busha quote failed", "error", err)
+		_ = h.claimRepo.UpdateStatus(claim.ID, models.StatusFailed, "", "", err.Error())
+		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to create quote: " + err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusAccepted, ClaimResponse{
+	slog.Info("quote created", "quote_id", quote.ID)
+	transfer, err := h.bushaClient.CreateTransfer(quote.ID)
+	if err != nil {
+		slog.Error("busha transfer failed", "error", err)
+		_ = h.claimRepo.UpdateStatus(claim.ID, models.StatusFailed, quote.ID, "", err.Error())
+		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to create transfer: " + err.Error()})
+		return
+	}
+
+	slog.Info("transfer created", "transfer_id", transfer.ID, "status", transfer.Status)
+	if err := h.claimRepo.UpdateStatus(claim.ID, models.StatusCompleted, quote.ID, transfer.ID, ""); err != nil {
+		slog.Error("failed to update claim to COMPLETED", "error", err)
+	}
+
+	claim.Status = models.StatusCompleted
+
+	c.JSON(http.StatusOK, ClaimResponse{
 		Data: ClaimData{
-			ID:		claim.ID,
-			WalletAddress:	claim.WalletAddress,
-			Blockchain:	claim.Blockchain,
-			Amount:		claim.Amount,
-			Status:		claim.Status,
-			CreatedAt:	claim.CreatedAt,
+			ID:            claim.ID,
+			WalletAddress: claim.WalletAddress,
+			Blockchain:    claim.Blockchain,
+			Amount:        claim.Amount,
+			Status:        claim.Status,
+			CreatedAt:     claim.CreatedAt,
 		},
-		Message:	"claim submitted successfully. Processing will begin shortly.",
+		Message: "claim processed successfully.",
 	})
 }
 

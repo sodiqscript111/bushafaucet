@@ -12,7 +12,6 @@ import (
 	"faucet/internal/config"
 	"faucet/internal/db"
 	"faucet/internal/handler"
-	rds "faucet/internal/redis"
 )
 
 func main() {
@@ -36,19 +35,11 @@ func main() {
 	}
 	slog.Info("database schema migrated")
 
-	redisClient, err := rds.NewClient(cfg.RedisAddr)
-	if err != nil {
-		log.Fatalf("failed to connect to Redis: %v", err)
-	}
-	defer redisClient.Close()
-	slog.Info("connected to Redis")
-
 	bushaClient := busha.NewClient(cfg.BushaAPIKey, cfg.BushaBaseURL, cfg.BushaProfileID)
-	_ = bushaClient
 
 	claimRepo := db.NewClaimRepository(database)
 
-	faucetHandler := handler.NewFaucetHandler(cfg, claimRepo, redisClient)
+	faucetHandler := handler.NewFaucetHandler(cfg, claimRepo, bushaClient)
 
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()

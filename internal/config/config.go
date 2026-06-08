@@ -5,8 +5,6 @@ import "os"
 type Config struct {
 	ServerPort	string
 
-	RedisAddr	string
-
 	DatabaseURL	string
 
 	BushaAPIKey	string
@@ -36,7 +34,6 @@ func Load() *Config {
 	return &Config{
 		ServerPort:	getEnv("SERVER_PORT", "8085"),
 
-		RedisAddr:	getEnv("REDIS_ADDR", "127.0.0.1:6380"),
 		DatabaseURL:	getEnv("DATABASE_URL", "postgres://postgres:postgres@127.0.0.1:5433/faucet?sslmode=disable"),
 
 		BushaAPIKey:	getEnv("BUSHA_API_KEY", ""),

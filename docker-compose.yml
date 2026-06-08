@@ -8,19 +8,6 @@
 # If you want standalone containers, uncomment and use the services below.
 
 services:
-  redis:
-    image: redis:7-alpine
-    container_name: faucet-redis
-    ports:
-      - "6380:6379"
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 3s
-      retries: 3
-    restart: unless-stopped
 
   postgres:
     image: postgres:16-alpine
@@ -41,5 +28,5 @@ services:
     restart: unless-stopped
 
 volumes:
-  redis_data:
+
   postgres_data:
