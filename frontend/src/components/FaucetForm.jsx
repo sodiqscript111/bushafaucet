@@ -31,6 +31,18 @@ export default function FaucetForm({ onSubmitting, onSuccess, onError }) {
 
   const maxAmount = config?.max_amounts?.[blockchain] || ''
 
+  const handleBlockchainChange = (e) => {
+    const newNetwork = e.target.value
+    setBlockchain(newNetwork)
+    
+    // Auto-fill the required amount to prevent minimum/maximum errors
+    if (newNetwork && config?.max_amounts?.[newNetwork]) {
+      setAmount(config.max_amounts[newNetwork])
+    } else {
+      setAmount('')
+    }
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setFieldError('')
@@ -108,7 +120,7 @@ export default function FaucetForm({ onSubmitting, onSuccess, onError }) {
         <label>Network</label>
         <select
           value={blockchain}
-          onChange={(e) => setBlockchain(e.target.value)}
+          onChange={handleBlockchainChange}
           disabled={configLoading || configError}
         >
           <option value="">
@@ -131,10 +143,11 @@ export default function FaucetForm({ onSubmitting, onSuccess, onError }) {
           onChange={(e) => setAmount(e.target.value)}
           min="0"
           step="any"
+          readOnly={true}
         />
         {maxAmount && (
           <p className="field-hint">
-            Max {maxAmount} {blockchain}
+            Amount is fixed at {maxAmount} {blockchain} by the sandbox API.
           </p>
         )}
       </div>
