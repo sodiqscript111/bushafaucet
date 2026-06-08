@@ -20,8 +20,6 @@ RUN apk add --no-cache ca-certificates tzdata
 
 COPY --from=builder /bin/server /bin/server
 
-COPY --from=builder /app/web /app/web
-
 WORKDIR /app
 
 # Default entrypoint
