@@ -3,44 +3,36 @@ package config
 import "os"
 
 type Config struct {
-	ServerPort	string
+	ServerPort string
 
-	BushaAPIKey	string
-	BushaBaseURL	string
-	BushaProfileID	string
-	
-	MaxFaucetAmountBTC	string
-	MaxFaucetAmountETH	string
-	MaxFaucetAmountUSDT	string
-	MaxFaucetAmountUSDC	string
-	MaxFaucetAmountBNB	string
+	BushaAPIKey    string
+	BushaBaseURL   string
+	BushaProfileID string
+
+	MaxFaucetAmountBTC  string
+	MaxFaucetAmountETH  string
+	MaxFaucetAmountUSDT string
+	MaxFaucetAmountUSDC string
+	MaxFaucetAmountBNB  string
 }
 
 func SupportedBlockchains() []string {
 	return []string{"BTC", "ETH", "USDT", "USDC", "BNB"}
 }
 
-var BlockchainNetworks = map[string]string{
-	"BTC":	"BTC",
-	"ETH":	"ETH",
-	"USDT":	"ETH",
-	"USDC":	"ETH",
-	"BNB":	"BNB",
-}
-
 func Load() *Config {
 	return &Config{
-		ServerPort:	getEnv("SERVER_PORT", "8085"),
+		ServerPort: getEnv("SERVER_PORT", "8085"),
 
-		BushaAPIKey:	getEnv("BUSHA_API_KEY", ""),
-		BushaBaseURL:	getEnv("BUSHA_BASE_URL", "https://api.staging.busha.so"),
-		BushaProfileID:	getEnv("BUSHA_PROFILE_ID", ""),
+		BushaAPIKey:    getEnv("BUSHA_API_KEY", ""),
+		BushaBaseURL:   getEnv("BUSHA_BASE_URL", "https://api.staging.busha.so"),
+		BushaProfileID: getEnv("BUSHA_PROFILE_ID", ""),
 
-		MaxFaucetAmountBTC:	getEnv("FAUCET_AMOUNT_BTC", "0.0001"),
-		MaxFaucetAmountETH:	getEnv("FAUCET_AMOUNT_ETH", "0.005"),
-		MaxFaucetAmountUSDT:	getEnv("FAUCET_AMOUNT_USDT", "5"),
-		MaxFaucetAmountUSDC:	getEnv("FAUCET_AMOUNT_USDC", "5"),
-		MaxFaucetAmountBNB:	getEnv("FAUCET_AMOUNT_BNB", "0.01"),
+		MaxFaucetAmountBTC:  getEnv("FAUCET_AMOUNT_BTC", "0.0001"),
+		MaxFaucetAmountETH:  getEnv("FAUCET_AMOUNT_ETH", "0.005"),
+		MaxFaucetAmountUSDT: getEnv("FAUCET_AMOUNT_USDT", "5"),
+		MaxFaucetAmountUSDC: getEnv("FAUCET_AMOUNT_USDC", "5"),
+		MaxFaucetAmountBNB:  getEnv("FAUCET_AMOUNT_BNB", "0.01"),
 	}
 }
 

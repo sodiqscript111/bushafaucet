@@ -137,3 +137,11 @@ func (c *Client) CreateTransfer(quoteID string) (*Transfer, error) {
 
 	return &resp.Data, nil
 }
+
+func (c *Client) GetCurrencies() ([]Currency, error) {
+	var resp CurrenciesResponse
+	if err := c.doRequest("GET", "/v1/currencies", nil, &resp); err != nil {
+		return nil, fmt.Errorf("get currencies: %w", err)
+	}
+	return resp.Data, nil
+}

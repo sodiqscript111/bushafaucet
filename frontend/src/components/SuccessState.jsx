@@ -18,8 +18,12 @@ export default function SuccessState({ claim, onReset }) {
         </p>
         <div className="receipt">
           <div className="receipt-row">
-            <span>Network</span>
+            <span>Asset</span>
             <span>{claim?.blockchain}</span>
+          </div>
+          <div className="receipt-row">
+            <span>Network</span>
+            <span>{claim?.network}</span>
           </div>
           <div className="receipt-row">
             <span>Amount</span>

@@ -69,3 +69,30 @@ type APIError struct {
 	Error	ErrorDetail		`json:"error"`
 	Fields	map[string]interface{}	`json:"fields,omitempty"`
 }
+
+type SupportedNetwork struct {
+	ID                   string `json:"id"`
+	Name                 string `json:"name"`
+	Network              string `json:"network"`
+	Status               string `json:"status"`
+	Deposit              bool   `json:"deposit"`
+	Withdrawal           bool   `json:"withdrawal"`
+	MinWithdrawalAmount  string `json:"min_withdrawal_amount"`
+	MaxWithdrawalAmount  string `json:"max_withdrawal_amount"`
+	WithdrawalFee        string `json:"withdrawal_fee"`
+	AddressRegex         string `json:"address_regex"`
+}
+
+type Currency struct {
+	Code              string             `json:"code"`
+	Name              string             `json:"name"`
+	DisplayName       string             `json:"display_name"`
+	Type              string             `json:"type"`
+	Deposit           bool               `json:"deposit"`
+	Withdrawal        bool               `json:"withdrawal"`
+	SupportedNetworks []SupportedNetwork `json:"supported_networks"`
+}
+
+type CurrenciesResponse struct {
+	Data []Currency `json:"data"`
+}

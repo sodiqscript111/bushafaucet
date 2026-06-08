@@ -8,6 +8,7 @@ export default function FaucetForm({ onSubmitting, onSuccess, onError }) {
   const [configError, setConfigError] = useState(false)
   const [walletAddress, setWalletAddress] = useState('')
   const [blockchain, setBlockchain] = useState('')
+  const [network, setNetwork] = useState('')
   const [amount, setAmount] = useState('')
   const [fieldError, setFieldError] = useState('')
 
@@ -29,18 +30,31 @@ export default function FaucetForm({ onSubmitting, onSuccess, onError }) {
     loadConfig()
   }, [loadConfig])
 
-  const maxAmount = config?.max_amounts?.[blockchain] || ''
+  const selectedAsset = config?.assets?.find((a) => a.code === blockchain)
+  const networks = selectedAsset?.networks || []
+  const maxAmount = selectedAsset?.max_amount || ''
 
-  const handleBlockchainChange = (e) => {
-    const newNetwork = e.target.value
-    setBlockchain(newNetwork)
-    
-    // Auto-fill the required amount to prevent minimum/maximum errors
-    if (newNetwork && config?.max_amounts?.[newNetwork]) {
-      setAmount(config.max_amounts[newNetwork])
+  const handleAssetChange = (e) => {
+    const newAsset = e.target.value
+    setBlockchain(newAsset)
+    setNetwork('')
+    setFieldError('')
+
+    const asset = config?.assets?.find((a) => a.code === newAsset)
+    if (asset && asset.max_amount) {
+      setAmount(asset.max_amount)
     } else {
       setAmount('')
     }
+
+    if (asset?.networks?.length === 1) {
+      setNetwork(asset.networks[0].network)
+    }
+  }
+
+  const handleNetworkChange = (e) => {
+    setNetwork(e.target.value)
+    setFieldError('')
   }
 
   const handleSubmit = async (e) => {
@@ -48,7 +62,8 @@ export default function FaucetForm({ onSubmitting, onSuccess, onError }) {
     setFieldError('')
 
     if (!walletAddress) return setFieldError('Wallet address is required')
-    if (!blockchain) return setFieldError('Please select a network')
+    if (!blockchain) return setFieldError('Please select an asset')
+    if (!network) return setFieldError('Please select a network')
     if (!amount || Number(amount) <= 0)
       return setFieldError('Enter a valid amount')
     if (maxAmount && Number(amount) > Number(maxAmount)) {
@@ -60,6 +75,7 @@ export default function FaucetForm({ onSubmitting, onSuccess, onError }) {
       const result = await submitClaim({
         wallet_address: walletAddress,
         blockchain,
+        network,
         amount: Number(amount),
       })
       onSuccess(result.data)
@@ -117,22 +133,39 @@ export default function FaucetForm({ onSubmitting, onSuccess, onError }) {
       </div>
 
       <div className="field">
-        <label>Network</label>
+        <label>Asset</label>
         <select
           value={blockchain}
-          onChange={handleBlockchainChange}
+          onChange={handleAssetChange}
           disabled={configLoading || configError}
         >
           <option value="">
-            {configLoading ? 'Loading networks…' : 'Select a network'}
+            {configLoading ? 'Loading assets…' : 'Select an asset'}
           </option>
-          {config?.blockchains?.map((b) => (
-            <option key={b} value={b}>
-              {b}
+          {config?.assets?.map((a) => (
+            <option key={a.code} value={a.code}>
+              {a.code} — {a.name}
             </option>
           ))}
         </select>
       </div>
+
+      {blockchain && networks.length > 0 && (
+        <div className="field">
+          <label>Network</label>
+          <select
+            value={network}
+            onChange={handleNetworkChange}
+          >
+            <option value="">Select a network</option>
+            {networks.map((n) => (
+              <option key={n.network} value={n.network}>
+                {n.name} ({n.network})
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div className="field">
         <label>Amount</label>
@@ -155,7 +188,7 @@ export default function FaucetForm({ onSubmitting, onSuccess, onError }) {
       <button
         type="submit"
         className="btn-primary"
-        disabled={configLoading || configError}
+        disabled={configLoading || configError || !network}
       >
         Send test tokens
       </button>
