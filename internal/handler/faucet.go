@@ -5,48 +5,52 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 
 	"faucet/internal/busha"
 	"faucet/internal/config"
-	"faucet/internal/db"
 	"faucet/internal/models"
 )
 
 type FaucetHandler struct {
 	cfg         *config.Config
-	claimRepo   *db.ClaimRepository
 	bushaClient *busha.Client
+
+	// Simple in-memory rate limiter
+	lastClaim map[string]time.Time
+	mu        sync.RWMutex
 }
 
-func NewFaucetHandler(cfg *config.Config, claimRepo *db.ClaimRepository, bushaClient *busha.Client) *FaucetHandler {
+func NewFaucetHandler(cfg *config.Config, bushaClient *busha.Client) *FaucetHandler {
 	return &FaucetHandler{
 		cfg:         cfg,
-		claimRepo:   claimRepo,
 		bushaClient: bushaClient,
+		lastClaim:   make(map[string]time.Time),
 	}
 }
 
 type ClaimRequest struct {
-	WalletAddress	string	`json:"wallet_address" binding:"required"`
-	Blockchain	string	`json:"blockchain"      binding:"required"`
-	Amount		float64	`json:"amount"          binding:"required,gt=0"`
+	WalletAddress string  `json:"wallet_address" binding:"required"`
+	Blockchain    string  `json:"blockchain"      binding:"required"`
+	Amount        float64 `json:"amount"          binding:"required,gt=0"`
 }
 
 type ClaimResponse struct {
-	Data	ClaimData	`json:"data"`
-	Message	string		`json:"message"`
+	Data    ClaimData `json:"data"`
+	Message string    `json:"message"`
 }
 
 type ClaimData struct {
-	ID		string			`json:"id"`
-	WalletAddress	string			`json:"wallet_address"`
-	Blockchain	string			`json:"blockchain"`
-	Amount		float64			`json:"amount"`
-	Status		models.ClaimStatus	`json:"status"`
-	CreatedAt	time.Time		`json:"created_at"`
+	ID            string             `json:"id"`
+	WalletAddress string             `json:"wallet_address"`
+	Blockchain    string             `json:"blockchain"`
+	Amount        float64            `json:"amount"`
+	Status        models.ClaimStatus `json:"status"`
+	CreatedAt     time.Time          `json:"created_at"`
 }
 
 type ErrorResponse struct {
@@ -84,16 +88,12 @@ func (h *FaucetHandler) HandleClaim(c *gin.Context) {
 		return
 	}
 
-	// Simple processing without Redis lock
+	// In-memory rate limiting
+	h.mu.RLock()
+	lastTime, exists := h.lastClaim[req.WalletAddress]
+	h.mu.RUnlock()
 
-	since := time.Now().Add(-24 * time.Hour)
-	count, err := h.claimRepo.CountRecentClaims(req.WalletAddress, since)
-	if err != nil {
-		slog.Error("failed to count recent claims", "error", err)
-		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "internal server error"})
-		return
-	}
-	if count >= 1 {
+	if exists && time.Since(lastTime) < 24*time.Hour {
 		c.JSON(http.StatusBadRequest, ErrorResponse{
 			Error: "you have already claimed from the faucet in the last 24 hours",
 		})
@@ -101,16 +101,13 @@ func (h *FaucetHandler) HandleClaim(c *gin.Context) {
 	}
 
 	claim := &models.FaucetClaim{
-		WalletAddress:	req.WalletAddress,
-		Blockchain:	req.Blockchain,
-		Amount:		req.Amount,
-		Status:		models.StatusPending,
-	}
-
-	if err := h.claimRepo.Create(claim); err != nil {
-		slog.Error("failed to create claim", "error", err)
-		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "internal server error"})
-		return
+		ID:            uuid.New().String(),
+		WalletAddress: req.WalletAddress,
+		Blockchain:    req.Blockchain,
+		Amount:        req.Amount,
+		Status:        models.StatusPending,
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
 	}
 
 	slog.Info("claim created", "claim_id", claim.ID, "wallet", req.WalletAddress, "blockchain", req.Blockchain)
@@ -122,26 +119,27 @@ func (h *FaucetHandler) HandleClaim(c *gin.Context) {
 	quote, err := h.bushaClient.CreateQuote(req.Blockchain, amountStr, req.WalletAddress, network)
 	if err != nil {
 		slog.Error("busha quote failed", "error", err)
-		_ = h.claimRepo.UpdateStatus(claim.ID, models.StatusFailed, "", "", err.Error())
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to create quote: " + err.Error()})
 		return
 	}
 
 	slog.Info("quote created", "quote_id", quote.ID)
+
 	transfer, err := h.bushaClient.CreateTransfer(quote.ID)
 	if err != nil {
 		slog.Error("busha transfer failed", "error", err)
-		_ = h.claimRepo.UpdateStatus(claim.ID, models.StatusFailed, quote.ID, "", err.Error())
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to create transfer: " + err.Error()})
 		return
 	}
 
 	slog.Info("transfer created", "transfer_id", transfer.ID, "status", transfer.Status)
-	if err := h.claimRepo.UpdateStatus(claim.ID, models.StatusCompleted, quote.ID, transfer.ID, ""); err != nil {
-		slog.Error("failed to update claim to COMPLETED", "error", err)
-	}
 
 	claim.Status = models.StatusCompleted
+
+	// Update last claim time since it was successful
+	h.mu.Lock()
+	h.lastClaim[req.WalletAddress] = time.Now()
+	h.mu.Unlock()
 
 	c.JSON(http.StatusOK, ClaimResponse{
 		Data: ClaimData{
@@ -156,44 +154,6 @@ func (h *FaucetHandler) HandleClaim(c *gin.Context) {
 	})
 }
 
-func (h *FaucetHandler) HandleGetClaim(c *gin.Context) {
-	id := c.Param("id")
-	if id == "" {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "claim id is required"})
-		return
-	}
-
-	claim, err := h.claimRepo.FindByID(id)
-	if err != nil {
-		slog.Error("failed to find claim", "error", err)
-		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "internal server error"})
-		return
-	}
-	if claim == nil {
-		c.JSON(http.StatusNotFound, ErrorResponse{Error: "claim not found"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"data": claim})
-}
-
-func (h *FaucetHandler) HandleListClaims(c *gin.Context) {
-	limitStr := c.DefaultQuery("limit", "50")
-	limit, err := strconv.Atoi(limitStr)
-	if err != nil || limit <= 0 || limit > 100 {
-		limit = 50
-	}
-
-	claims, err := h.claimRepo.ListRecent(limit)
-	if err != nil {
-		slog.Error("failed to list claims", "error", err)
-		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "internal server error"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"data": claims})
-}
-
 func (h *FaucetHandler) HandleGetConfig(c *gin.Context) {
 	maxAmounts := make(map[string]string)
 	for _, bc := range config.SupportedBlockchains() {
@@ -201,7 +161,7 @@ func (h *FaucetHandler) HandleGetConfig(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"blockchains":	config.SupportedBlockchains(),
-		"max_amounts":	maxAmounts,
+		"blockchains": config.SupportedBlockchains(),
+		"max_amounts": maxAmounts,
 	})
 }

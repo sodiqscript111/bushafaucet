@@ -1,32 +1,4 @@
-# This faucet service reuses the same Redis and PostgreSQL containers
-# from the bushabot docker-compose (ports 6380 and 5433).
-#
-# To start infrastructure:  cd ../bushabot && docker compose up -d
-# Then create the faucet database:
-#   docker exec -it bushabot-postgres psql -U postgres -c "CREATE DATABASE faucet;"
-#
-# If you want standalone containers, uncomment and use the services below.
+# This faucet service runs purely in memory now.
 
 services:
 
-  postgres:
-    image: postgres:16-alpine
-    container_name: faucet-postgres
-    ports:
-      - "5433:5432"
-    environment:
-      POSTGRES_DB: faucet
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d faucet"]
-      interval: 10s
-      timeout: 3s
-      retries: 3
-    restart: unless-stopped
-
-volumes:
-
-  postgres_data:

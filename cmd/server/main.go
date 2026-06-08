@@ -10,7 +10,6 @@ import (
 
 	"faucet/internal/busha"
 	"faucet/internal/config"
-	"faucet/internal/db"
 	"faucet/internal/handler"
 )
 
@@ -24,22 +23,9 @@ func main() {
 
 	cfg := config.Load()
 
-	database, err := db.NewDB(cfg.DatabaseURL)
-	if err != nil {
-		log.Fatalf("failed to connect to database: %v", err)
-	}
-	slog.Info("connected to PostgreSQL")
-
-	if err := db.InitSchema(database); err != nil {
-		log.Fatalf("failed to init schema: %v", err)
-	}
-	slog.Info("database schema migrated")
-
 	bushaClient := busha.NewClient(cfg.BushaAPIKey, cfg.BushaBaseURL, cfg.BushaProfileID)
 
-	claimRepo := db.NewClaimRepository(database)
-
-	faucetHandler := handler.NewFaucetHandler(cfg, claimRepo, bushaClient)
+	faucetHandler := handler.NewFaucetHandler(cfg, bushaClient)
 
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
@@ -49,8 +35,6 @@ func main() {
 	api := r.Group("/api/v1")
 	{
 		api.POST("/faucet", faucetHandler.HandleClaim)
-		api.GET("/claims", faucetHandler.HandleListClaims)
-		api.GET("/claims/:id", faucetHandler.HandleGetClaim)
 		api.GET("/config", faucetHandler.HandleGetConfig)
 	}
 
