@@ -219,3 +219,38 @@ body {
 .receipt-row span:last-child {
   font-weight: 500;
 }
+
+.config-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 1rem;
+}
+
+.spinner-sm {
+  width: 18px;
+  height: 18px;
+  border-width: 2px;
+}
+
+.retry-link {
+  background: none;
+  border: none;
+  color: #12a232;
+  font-weight: 500;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.retry-link:hover {
+  color: #0f8f29;
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

@@ -1,30 +1,33 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { getConfig, submitClaim } from '../services/api'
 import logo from '../assets/light.svg'
 
 export default function FaucetForm({ onSubmitting, onSuccess, onError }) {
   const [config, setConfig] = useState(null)
+  const [configLoading, setConfigLoading] = useState(true)
+  const [configError, setConfigError] = useState(false)
   const [walletAddress, setWalletAddress] = useState('')
   const [blockchain, setBlockchain] = useState('')
   const [amount, setAmount] = useState('')
   const [fieldError, setFieldError] = useState('')
 
-  useEffect(() => {
+  const loadConfig = useCallback(() => {
+    setConfigLoading(true)
+    setConfigError(false)
     getConfig()
-      .then(setConfig)
-      .catch(() =>
-        setConfig({
-          blockchains: ['BTC', 'ETH', 'USDT', 'USDC', 'BNB'],
-          max_amounts: {
-            BTC: '0.0001',
-            ETH: '0.5',
-            USDT: '5',
-            USDC: '5',
-            BNB: '0.1',
-          },
-        }),
-      )
+      .then((data) => {
+        setConfig(data)
+        setConfigLoading(false)
+      })
+      .catch(() => {
+        setConfigError(true)
+        setConfigLoading(false)
+      })
   }, [])
+
+  useEffect(() => {
+    loadConfig()
+  }, [loadConfig])
 
   const maxAmount = config?.max_amounts?.[blockchain] || ''
 
@@ -65,6 +68,25 @@ export default function FaucetForm({ onSubmitting, onSuccess, onError }) {
         have no monetary value.
       </p>
 
+      {configLoading && (
+        <div className="config-loading">
+          <div className="spinner spinner-sm"></div>
+          <span>Loading available networks…</span>
+        </div>
+      )}
+
+      {configError && (
+        <div className="error-banner">
+          <span>⚠️</span>
+          <span>
+            Failed to load networks.{' '}
+            <button type="button" className="retry-link" onClick={loadConfig}>
+              Retry
+            </button>
+          </span>
+        </div>
+      )}
+
       {fieldError && (
         <div className="error-banner">
           <span>⚠️</span>
@@ -87,8 +109,11 @@ export default function FaucetForm({ onSubmitting, onSuccess, onError }) {
         <select
           value={blockchain}
           onChange={(e) => setBlockchain(e.target.value)}
+          disabled={configLoading || configError}
         >
-          <option value="">Select a network</option>
+          <option value="">
+            {configLoading ? 'Loading networks…' : 'Select a network'}
+          </option>
           {config?.blockchains?.map((b) => (
             <option key={b} value={b}>
               {b}
@@ -114,7 +139,11 @@ export default function FaucetForm({ onSubmitting, onSuccess, onError }) {
         )}
       </div>
 
-      <button type="submit" className="btn-primary">
+      <button
+        type="submit"
+        className="btn-primary"
+        disabled={configLoading || configError}
+      >
         Send test tokens
       </button>
     </form>
