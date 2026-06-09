@@ -74,10 +74,10 @@ func (c *Client) doRequest(method, path string, body, result interface{}) error 
 			msg := fmt.Sprintf("busha API error (%d): %s - %s", resp.StatusCode, apiErr.Error.Name, apiErr.Error.Message)
 			if len(apiErr.Fields) > 0 {
 				for field, reasons := range apiErr.Fields {
-					msg += fmt.Sprintf(" | %s: %v", field, reasons)
+					msg += fmt.Sprintf(" | %s: %s", field, formatReasons(reasons))
 				}
 			}
-			return fmt.Errorf(msg)
+			return fmt.Errorf("%s", msg)
 		}
 		return fmt.Errorf("busha API error (%d): %s", resp.StatusCode, string(respBody))
 	}
@@ -144,4 +144,32 @@ func (c *Client) GetCurrencies() ([]Currency, error) {
 		return nil, fmt.Errorf("get currencies: %w", err)
 	}
 	return resp.Data, nil
+}
+
+func formatReasons(reasons interface{}) string {
+	switch val := reasons.(type) {
+	case []interface{}:
+		var list []string
+		for _, item := range val {
+			if m, ok := item.(map[string]interface{}); ok {
+				if r, ok := m["reason"].(string); ok {
+					r = strings.ReplaceAll(r, "addesss", "address")
+					list = append(list, r)
+				}
+			} else if s, ok := item.(string); ok {
+				s = strings.ReplaceAll(s, "addesss", "address")
+				list = append(list, s)
+			}
+		}
+		if len(list) > 0 {
+			return strings.Join(list, ", ")
+		}
+	case map[string]interface{}:
+		if r, ok := val["reason"].(string); ok {
+			return strings.ReplaceAll(r, "addesss", "address")
+		}
+	case string:
+		return strings.ReplaceAll(val, "addesss", "address")
+	}
+	return fmt.Sprintf("%v", reasons)
 }
