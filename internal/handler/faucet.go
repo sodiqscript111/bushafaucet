@@ -169,17 +169,6 @@ func (h *FaucetHandler) HandleClaim(c *gin.Context) {
 		return
 	}
 
-	h.mu.RLock()
-	lastTime, exists := h.lastClaim[req.WalletAddress]
-	h.mu.RUnlock()
-
-	if exists && time.Since(lastTime) < 24*time.Hour {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: "you have already claimed from the faucet in the last 24 hours",
-		})
-		return
-	}
-
 	claim := &models.FaucetClaim{
 		ID:            uuid.New().String(),
 		WalletAddress: req.WalletAddress,
@@ -215,10 +204,6 @@ func (h *FaucetHandler) HandleClaim(c *gin.Context) {
 	slog.Info("transfer created", "transfer_id", transfer.ID, "status", transfer.Status)
 
 	claim.Status = models.StatusCompleted
-
-	h.mu.Lock()
-	h.lastClaim[req.WalletAddress] = time.Now()
-	h.mu.Unlock()
 
 	c.JSON(http.StatusOK, ClaimResponse{
 		Data: ClaimData{
