@@ -30,8 +30,8 @@ func Load() *Config {
 
 		MaxFaucetAmountBTC:  getEnv("FAUCET_AMOUNT_BTC", "0.0001"),
 		MaxFaucetAmountETH:  getEnv("FAUCET_AMOUNT_ETH", "0.005"),
-		MaxFaucetAmountUSDT: getEnv("FAUCET_AMOUNT_USDT", "5"),
-		MaxFaucetAmountUSDC: getEnv("FAUCET_AMOUNT_USDC", "5"),
+		MaxFaucetAmountUSDT: getEnv("FAUCET_AMOUNT_USDT", "100"),
+		MaxFaucetAmountUSDC: getEnv("FAUCET_AMOUNT_USDC", "100"),
 		MaxFaucetAmountBNB:  getEnv("FAUCET_AMOUNT_BNB", "0.01"),
 	}
 }

@@ -176,11 +176,10 @@ export default function FaucetForm({ onSubmitting, onSuccess, onError }) {
           onChange={(e) => setAmount(e.target.value)}
           min="0"
           step="any"
-          readOnly={true}
         />
         {maxAmount && (
           <p className="field-hint">
-            Amount is fixed at {maxAmount} {blockchain} by the sandbox API.
+            Maximum amount you can request is {maxAmount} {blockchain}.
           </p>
         )}
       </div>
